@@ -1,4 +1,7 @@
-﻿class ThreadedBinarySearchTree
+﻿using System;
+using System.Threading;
+
+class ThreadedBinarySearchTree
 {
     private class TreeNode
     {
@@ -18,14 +21,20 @@
             if (num < key)
             {
                 if (left == null)
-                    left = new TreeNode(num);
+                {
+                    lock (this)
+                        left = new TreeNode(num);
+                }
                 else
                     left.add(num);
             }
             else
             {
                 if (right == null)
-                    right = new TreeNode(num);
+                {
+                    lock (this)
+                        right = new TreeNode(num);
+                }
                 else
                     right.add(num);
             }
@@ -46,21 +55,26 @@
                     return right;
                 if (right == null)
                     return left;
-                TreeNode successor = findSuccessor(right);
-                key = successor.key;
-                right = right.remove(successor.key);
+                lock (this)
+                {
+                    TreeNode successor = findSuccessor(right);
+                    key = successor.key;
+                    right = right.remove(successor.key);
+                }
             }
             else if (key > num)
             {
                 if (left == null)
                     return this;
-                left = left.remove(num);
+                lock (this)
+                    left = left.remove(num);
             }
             else
             {
                 if (right == null)
                     return this;
-                right = right.remove(num);
+                lock (this)
+                    right = right.remove(num);
             }
             return this;
         }
@@ -73,25 +87,30 @@
             {
                 if (left == null)
                     return false;
-                return left.search(num);
+                lock (this)
+                    return left.search(num);
             }
             else
             {
                 if (right == null)
                     return false;
-                return right.search(num);
+                lock (this)
+                    return right.search(num);
             }
         }
 
         public List<string> inorder()
         {
-            List<string> ordered = new List<string>();
-            if (left != null)
-                ordered.AddRange(left.inorder());
-            ordered.Add(key.ToString());
-            if (right != null)
-                ordered.AddRange(right.inorder());
-            return ordered;
+            lock (this)
+            {
+                List<string> ordered = new List<string>();
+                if (left != null)
+                    ordered.AddRange(left.inorder());
+                ordered.Add(key.ToString());
+                if (right != null)
+                    ordered.AddRange(right.inorder());
+                return ordered;
+            }
         }
     }
 
@@ -125,7 +144,8 @@
     // remove all items from tree
     public void clear()
     {
-        root = null;
+        lock (this)
+            root = null;
     }
 
     // print the values of three from the smallest to largest in comma delimited form.
