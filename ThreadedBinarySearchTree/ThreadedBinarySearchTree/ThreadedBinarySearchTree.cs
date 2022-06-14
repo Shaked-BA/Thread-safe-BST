@@ -47,10 +47,8 @@ class ThreadedBinarySearchTree
 
         private TreeNode findSuccessor(TreeNode node)
         {
-            enterReadSection();
             while (node.left != null)
                 node = node.left;
-            exitReadSection();
             return node;
         }
 
@@ -132,8 +130,8 @@ class ThreadedBinarySearchTree
 
     private static long readers;
 
-    private static Semaphore readWriteMutex = new Semaphore(1,1);
-    private static Semaphore reads = new Semaphore(1,1);
+    private Semaphore? readWriteSemaphore = new Semaphore(1,1);
+    private Semaphore? reads = new Semaphore(1,1);
 
     // add num to the tree, if it already exists, do nothing
     public void add(int num)
@@ -142,7 +140,7 @@ class ThreadedBinarySearchTree
         if (root == null)
         {
             //if (Interlocked.Increment(ref TreeNode.writers) == 1)
-            //    TreeNode.readWriteMutex.WaitOne();
+            //    TreeNode.readWriteSemaphore.WaitOne();
             root = new TreeNode(num);
         }
         else
@@ -165,9 +163,7 @@ class ThreadedBinarySearchTree
     // search num in the tree and return true/false accordingly
     public bool search(int num)
     {
-        reads.WaitOne();
         enterReadSection();
-        reads.Release();
         if (root == null)
         {
             exitReadSection();
@@ -175,9 +171,7 @@ class ThreadedBinarySearchTree
         }
         bool res;
         res = root.search(num);
-        reads.WaitOne();
         exitReadSection();
-        reads.Release();
         return res;
     }
 
@@ -201,25 +195,29 @@ class ThreadedBinarySearchTree
         }
     }
 
-    public static void enterReadSection()
+    public void enterReadSection()
     {
+        reads.WaitOne();
         if (Interlocked.Increment(ref readers) == 1)
-            readWriteMutex.WaitOne();
+            readWriteSemaphore.WaitOne();
+        reads.Release();
     }
 
-    public static void exitReadSection()
+    public void exitReadSection()
     {
+        reads.WaitOne();
         if (Interlocked.Decrement(ref readers) == 0)
-            readWriteMutex.Release();
+            readWriteSemaphore.Release();
+        reads.Release();
     }
 
-    public static void enterWriteSection()
+    public void enterWriteSection()
     {
-        readWriteMutex.WaitOne();
+        readWriteSemaphore.WaitOne();
     }
 
-    public static void exitWriteSection()
+    public void exitWriteSection()
     {
-        readWriteMutex.Release();
+        readWriteSemaphore.Release();
     }
 }
