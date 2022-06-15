@@ -17,26 +17,31 @@ class ThreadedBinarySearchTree
         public void add(int num)
         {
             if (key == num)
+            {
                 return;
+            }
             if (num < key)
             {
                 if (left == null)
                 {
-                    lock (this)
-                        left = new TreeNode(num);
+                    left = new TreeNode(num);
                 }
                 else
+                {
                     left.add(num);
+                }
             }
             else
             {
                 if (right == null)
                 {
-                    lock (this)
-                        right = new TreeNode(num);
+                    right = new TreeNode(num);
                 }
                 else
+                {
                     right.add(num);
+                }
+                
             }
         }
 
@@ -52,29 +57,32 @@ class ThreadedBinarySearchTree
             if (key == num)
             {
                 if (left == null)
-                    return right;
-                if (right == null)
-                    return left;
-                lock (this)
                 {
-                    TreeNode successor = findSuccessor(right);
-                    key = successor.key;
-                    right = right.remove(successor.key);
+                    return right;
                 }
+                if (right == null)
+                {
+                    return left;
+                }
+                TreeNode successor = findSuccessor(right);
+                key = successor.key;
+                right = right.remove(successor.key);
             }
             else if (key > num)
             {
                 if (left == null)
+                {
                     return this;
-                lock (this)
-                    left = left.remove(num);
+                }
+                left = left.remove(num);
             }
             else
             {
                 if (right == null)
+                {
                     return this;
-                lock (this)
-                    right = right.remove(num);
+                }
+                right = right.remove(num);
             }
             return this;
         }
@@ -82,20 +90,24 @@ class ThreadedBinarySearchTree
         public bool search(int num)
         {
             if (key == num)
+            {
                 return true;
+            }
             if (key > num)
             {
                 if (left == null)
+                {
                     return false;
-                lock (this)
-                    return left.search(num);
+                }
+                return left.search(num);
             }
             else
             {
                 if (right == null)
+                {
                     return false;
-                lock (this)
-                    return right.search(num);
+                }
+                return right.search(num);
             }
         }
 
@@ -116,36 +128,57 @@ class ThreadedBinarySearchTree
 
     private TreeNode? root = null;
 
+    private static long readers;
+
+    private Semaphore? readWriteSemaphore = new Semaphore(1,1);
+    private Semaphore? reads = new Semaphore(1,1);
+
     // add num to the tree, if it already exists, do nothing
     public void add(int num)
     {
+        enterWriteSection();
         if (root == null)
+        {
             root = new TreeNode(num);
+        }
         else
+        {
             root.add(num);
+        }
+        exitWriteSection();
     }
 
     // remove num from the tree, if it doesn't exists, do nothing
     public void remove(int num)
     {
+        enterWriteSection();
         if (root == null)
             return;
         root = root.remove(num);
+        exitWriteSection();
     }
 
     // search num in the tree and return true/false accordingly
     public bool search(int num)
     {
+        enterReadSection();
         if (root == null)
+        {
+            exitReadSection();
             return false;
-        return root.search(num);
+        }
+        bool res;
+        res = root.search(num);
+        exitReadSection();
+        return res;
     }
 
     // remove all items from tree
     public void clear()
     {
-        lock (this)
-            root = null;
+        enterWriteSection();
+        root = null;
+        exitWriteSection();
     }
 
     // print the values of three from the smallest to largest in comma delimited form.
@@ -153,6 +186,36 @@ class ThreadedBinarySearchTree
     public void print()
     {
         if (root != null)
+        {
+            enterReadSection();
             Console.WriteLine(String.Join(',', root.inorder()));
+            exitReadSection();
+        }
+    }
+
+    public void enterReadSection()
+    {
+        reads.WaitOne();
+        if (Interlocked.Increment(ref readers) == 1)
+            readWriteSemaphore.WaitOne();
+        reads.Release();
+    }
+
+    public void exitReadSection()
+    {
+        reads.WaitOne();
+        if (Interlocked.Decrement(ref readers) == 0)
+            readWriteSemaphore.Release();
+        reads.Release();
+    }
+
+    public void enterWriteSection()
+    {
+        readWriteSemaphore.WaitOne();
+    }
+
+    public void exitWriteSection()
+    {
+        readWriteSemaphore.Release();
     }
 }
