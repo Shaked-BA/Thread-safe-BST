@@ -139,8 +139,6 @@ class ThreadedBinarySearchTree
         enterWriteSection();
         if (root == null)
         {
-            //if (Interlocked.Increment(ref TreeNode.writers) == 1)
-            //    TreeNode.readWriteSemaphore.WaitOne();
             root = new TreeNode(num);
         }
         else
